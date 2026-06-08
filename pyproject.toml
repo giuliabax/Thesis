@@ -1,0 +1,17 @@
+[build-system]
+# Disable Python bytecode generation project-wide
+requires = ["setuptools", "wheel"]
+
+[tool.pytest.ini_options]
+# DISABLE ALL PYTEST CACHING
+addopts = [
+    "-p", "no:cacheprovider",
+    "-vv",
+    "--import-mode=importlib",  # Better module reloading
+]
+cache_dir = "/dev/null"
+
+[tool.black]
+# Disable black cache
+# This is just for completeness if you use black
+cache = false

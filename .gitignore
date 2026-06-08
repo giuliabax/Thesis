@@ -1,0 +1,68 @@
+# Agent working directories
+workspace/
+workspace_*/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+Lib/
+lib64/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Testing & Cache
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.cache/
+*.cache
+__pypackages__/
+
+# Environment variables
+.env
+.env.local
+*.env
+
+# LangChain/LangGraph
+.langchain/
+.langgraph/
+*.db
+*.sqlite
+
+# Logs
+*.log
+logs/
+
+# Misc
+*.exe
+*.jar
+*.bak
+.tmp/
