@@ -66,3 +66,14 @@ logs/
 *.jar
 *.bak
 .tmp/
+
+projects/
+
+# Local thesis inputs and generated run artifacts
+data/openapi/*
+!data/openapi/.gitkeep
+data/runs/*
+!data/runs/.gitkeep
+
+appunti.txt
+architecture.png

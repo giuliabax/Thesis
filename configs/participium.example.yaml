@@ -1,0 +1,30 @@
+project_name: participium-thesis-run
+run_id: null
+
+llm:
+  provider: groq
+  model: ${GROQ_MODEL}
+  temperature: 0.1
+  max_tokens: 4096
+
+inputs:
+  requirements:
+    description_pdf: data/requirements/participium-description.pdf
+    user_stories_xlsx: data/requirements/participium-userstories.xlsx
+    faq_pdf: data/requirements/participium-faq.pdf
+  openapi_path: projects/participium-team09/swagger.yaml
+  sut_base_url: http://localhost:8080
+
+execution:
+  runner: python_requests
+  reset_command: null
+  timeout_seconds: 30
+
+budget:
+  max_iterations: 3
+  max_tests_per_iteration: 10
+  max_llm_calls: 50
+
+output:
+  runs_dir: data/runs
+

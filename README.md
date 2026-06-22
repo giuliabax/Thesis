@@ -1,156 +1,187 @@
-# 🚀 Multi-Agent LLM Architecture (TDD-Oriented)
+# Participium REST Tester
 
-This repository contains a modular **multi-agent LLM system** designed to collaboratively generate **unit tests and implementation code** following a **Test-Driven Development (TDD)** workflow.  
-The system uses **LangGraph** to orchestrate multi-step agent interactions, allowing agents to iterate, refine, and cooperate through a structured computational graph.
+This MSc thesis project investigates automated black-box REST API test generation using
+LLM-based agents and a metric-guided feedback loop. The systems under test are independent student
+implementations of the Participium requirements, exposed through a common REST API contract.
 
-Each agent operates in its own isolated workspace, producing tests, implementations, and logs during the development cycle.
+## Current scope
 
----
+The repository currently implements the workflow-preparation stage:
 
-## ✨ Key Features
+1. load the Participium description, FAQ, and user stories;
+2. normalize a student project's OpenAPI or Swagger document;
+3. run requirements, API-understanding, and test-strategy planning agents;
+4. assemble a validated workflow plan and save reproducible run artifacts.
 
-- **Multi-agent orchestration via LangGraph**  
-  Agents communicate through well-defined graph nodes and edges.
+The XLSX remains authoritative for user-story IDs, roles, business values, and core text. LLM
+analysis enriches those rows but cannot omit or renumber them. API operations are likewise
+reconciled to Swagger, deterministic dependency edges are added for common state/resource flows,
+and the strategy planner must pass semantic quality gates before a plan is accepted.
 
-- **Automated Test-Driven Development (TDD)**  
-  A *Test Agent* generates tests → an *Implementation Agent* writes code → the loop repeats until tests pass.
+The current planning flow is:
 
-- **Modular, maintainable architecture**  
-  Nodes, edges, and model configurations are cleanly separated into dedicated files.
-
-- **Supports local and cloud LLMs**  
-  - Local inference via **Ollama**
-  - Cloud models via **Google Gemini**
-
-- **Isolated workspaces per agent**  
-  Each agent writes to its own folder under `/workspace`.
-
----
-
-## 📦 Folder Structure
-
-```
-├── edges.py # LangGraph / LangChain edges connecting nodes
-├── nodes.py # Definitions for each graph node (agent logic)
-├── models.py # LLM provider setup (Ollama or Gemini)
-├── main.py # Entry point and graph execution logic
-├── requirements.txt # Python dependencies
-├── .env.example # Template for environment variables
-└── workspace/ # Auto-generated output directory
-├── agent_1/
-│ ├── tests/
-│ └── implementation/
-├── agent_2/
-└── ...
+```text
+PDF/XLSX requirements -> deterministic loading -> Requirements Analyst -> source reconciliation
+Swagger/OpenAPI       -> deterministic loading -> API Understanding   -> dependency enrichment
+validated analyses + budget                         -> Strategy Planner -> quality finalization
+                                                                  -> WorkflowPlan
 ```
 
+Agents exchange validated Python objects through the Orchestrator. JSON files are persisted as
+audit and reproducibility artifacts; they are not used as an ad-hoc message bus between agents.
 
-### 🗂️ Workspace Directory
+It does **not** generate executable tests, call the SUT, reset SUT state, calculate metrics, or run
+the iterative feedback loop yet.
 
-During execution, the orchestrator creates a `workspace/` folder where each agent receives:
+The default future Python test format is **pytest + requests**. Generated tests will use explicit
+timeouts, configuration-driven base URLs, isolated fixtures, and cleanup teardown. Newman/Postman
+remains available as a second runner backend.
 
-- `tests/` — Test files generated during the TDD cycle  
-- `implementation/` — Code written by the agent  
-- Log/prompts metadata (optional depending on configuration)
+## Inputs
 
-This ensures clean isolation and reproducible agent behavior.
+Place local inputs at the paths referenced by your YAML configuration. The example expects:
 
----
+- `data/requirements/participium-description.pdf`
+- `data/requirements/participium-userstories.xlsx`
+- `data/requirements/participium-faq.pdf`
+- `projects/participium-team09/swagger.yaml`
+- a running SUT base URL, defaulting to `http://localhost:8080`
 
-## ⚙️ Prerequisites
+Requirement documents and student projects are local inputs and are ignored by Git. Relative paths
+are resolved from the repository working directory. For additional student systems, create one
+configuration per project and change `project_name`, `openapi_path`, and `sut_base_url`, for example:
 
-Before running the system, create a `.env` file in the project root.  
-Use `.env.example` as your template.
+```text
+configs/participium-team09.yaml
+configs/participium-team10.yaml
+```
 
-> **⚠️ IMPORTANT:**  
-> Never commit your `.env` file to version control.
+## Setup
 
----
-
-## 🧠 LLM Configuration
-
-The system can run using either **Ollama** or **Gemini**.
-
----
-
-### 🔹 Option 1: Using Ollama (Local Execution)
-
-Install Ollama and pull your preferred models:
+Python 3.12 or newer is required.
 
 ```bash
-pip install ollama
-ollama pull <model-name>
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+cp .env.example .env
 ```
 
-Then set environment variables:
-```ini
-LLM_PROVIDER=ollama
-OLLAMA_NAMES=qwen2.5-coder:3b,gemma2:2b
-OLLAMA_TEMPERATURES=0.1,0.1
+Configure a model identifier in `.env`. Add a real key only for live Groq runs:
+
+```dotenv
+GROQ_MODEL=your-configured-groq-model
+GROQ_API_KEY=your-secret-key
 ```
 
-You can substitute any models supported by Ollama.
+One model currently used for development runs is:
 
----
-
-### 🔹 Option 2: Using Google Gemini (Cloud)
-
-If you prefer cloud-based inference, add:
-
-```ini
-LLM_PROVIDER=gemini
-GOOGLE_API_KEY=<your api key>
-GEMINI_MODELS=gemini-2.5-flash-lite,gemini-2.5-flash
-GEMINI_TEMPERATURES=0.1,0.1
+```dotenv
+GROQ_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
 ```
 
-## ▶️ Running the Application
+Environment variables exported by the shell take precedence over `.env`. Never commit `.env`.
 
-Install dependencies:
+## Prepare a workflow plan
+
+Dry-run mode replaces all LLM calls with deterministic JSON and does not require an API key. It
+still loads and validates the configured PDF, XLSX, and OpenAPI files.
 
 ```bash
-pip install -r requirements.txt
+python -m thesis_rest_tester.cli plan \
+  --config configs/participium.example.yaml \
+  --dry-run
 ```
 
-Run the orchestrator:
+For a real Groq run:
+
 ```bash
-python main.py
+export GROQ_API_KEY="..."
+export GROQ_MODEL="..."
+python -m thesis_rest_tester.cli plan --config configs/participium.example.yaml
 ```
 
-This will:
+The model is always configuration-driven; no Groq model identifier is hardcoded in Python.
+The Groq SDK retries transient and rate-limit failures. On low-rate-limit tiers, a real planning
+run may pause between calls while the token-per-minute window resets.
 
-1. Load the LangGraph agent graph defined in `main.py`
-2. Initialize all agents
-3. Create a workspace for each agent
-4. Begin the automated TDD generation loop
-5. Produce tests and code inside the `/workspace/...` directory
+## Planning safeguards
 
-Each execution creates or updates a dedicated workspace folder for each agent, containing:
+The pipeline treats deterministic documentation as authoritative and LLM output as an enrichment:
 
-- `test.pt` — the final test file generated during the agent execution
-- `implementation.py` — the final implementation file generated during the agent execution 
-- `history/` — a sub folder containing the history of file changed by the agent during refactoring
+- all XLSX requirement IDs, roles, business values, and core texts are preserved;
+- omitted or renumbered LLM requirements cannot remove or corrupt XLSX traceability;
+- description/FAQ-only requirements may be added with `DESC-*` or `FAQ-*` IDs;
+- every normalized Swagger method/path remains present after API analysis;
+- deterministic registration, resource, assignment, messaging, and state dependencies are merged
+  with model-inferred dependency edges;
+- authenticated operations receive authentication setup;
+- path-parameter operations receive resource setup when needed;
+- mutating operations receive cleanup guidance;
+- stateful tests are added from dependency edges when the model omits them;
+- over-budget strategies are reduced while preserving required test types and maximizing distinct
+  requirement/operation coverage;
+- accepted strategies must include happy-path, edge-case, negative, and—when applicable—stateful
+  tests, mixed priorities, valid traceability, and at least 80% budget utilization when possible.
 
----
+These safeguards improve structure and traceability without silently treating an LLM response as
+ground truth. Semantic quality still requires measurement and, later, execution feedback.
 
-## 🐞 Bug Reports
+## Run artifacts
 
-To report a bug, please open a GitHub issue and include:
+Each plan is stored under `data/runs/<run_id>/`:
 
-- Clear steps to reproduce the issue  
-- Relevant logs or artefacts from the agent’s `workspace/<agent>/` folder  
-- Non-sensitive environment configuration details  
-  *(never share API keys or secrets)*
+- `config.resolved.yaml`
+- `requirements_compact.txt`
+- `openapi_operations.json`
+- `requirements_analysis.raw.txt` and `requirements_analysis.json`
+- `api_analysis.raw.txt` and `api_analysis.json`
+- `test_strategy.raw.txt` and `test_strategy.json`
+- `workflow_plan.json`
+- `summary.md`
 
-Providing sample input and the expected vs. actual output helps speed up investigation.
+If the first strategy draft fails diversity, traceability, stateful-flow, setup, or cleanup checks,
+`test_strategy.attempt1.raw.txt` is also retained and the planner receives one corrective call when
+the configured LLM-call budget permits it.
 
----
+Boundary-only Markdown JSON fences are normalized during parsing. If any agent returns malformed
+JSON or a schema-invalid value, one automatic repair call is made and the original response is
+retained as `<agent>.validation_attempt1.raw.txt`. Arbitrary prose and multiple JSON values remain
+invalid so parsing cannot silently accept ambiguous output.
 
-## 🧭 Future Improvements
+Raw model output is written before JSON parsing, so malformed responses remain available for
+debugging. Resolved configuration artifacts never contain the Groq API key.
 
-- New agent roles (Refactor Agent, Critic Agent, Security Agent)
-- CI integration to automatically validate generated output
-- A visual dashboard for LangGraph execution tracing
-- Metrics for code quality, stability, and convergence
-- Preset configurations for different TDD workflows
-- Optional memory between iterations for long-running agent collaborations
+`workflow_plan.json` is the canonical planning output for future generation agents. It combines the
+validated requirements analysis, API analysis, strategy items, assumptions, risks, and run metadata.
+
+## Quality checks
+
+```bash
+pytest
+ruff check .
+```
+
+The test suite covers configuration loading, environment expansion, input parsing, dry-run
+orchestration, CLI behavior, fence normalization, schema repair, source-ID preservation, dependency
+inference, strategy correction, authentication setup, cleanup, and budget/coverage gates.
+
+## Current limitations
+
+- generation prompts exist, but generation agents are not implemented;
+- no pytest/requests or Newman suite is generated or executed yet;
+- the configured SUT base URL and reset command are not used during planning;
+- metrics are modeled but their collectors still raise `NotImplementedError`;
+- `max_iterations` and the feedback/stop loop are not active yet;
+- `max_llm_calls` permits planner correction but is not yet tracked globally;
+- interrupted runs cannot currently resume from their validated intermediate artifacts;
+- role vocabulary and requirement/API contradictions still need explicit normalization/reporting.
+
+## Planned next steps
+
+The next useful increment is to define an executable test-case model and implement the Happy-Path,
+Edge-Case, Adversarial, and Test Writer agents. The Test Writer will emit pytest modules using
+`requests`; later increments can implement their static runner, the Newman runner, SUT reset hooks,
+metric collection, and the feedback loop that routes evaluation back through the Orchestrator.
+The modular provider and runner interfaces are already in place for those additions and for future
+collaborative or competitive agent modes.
